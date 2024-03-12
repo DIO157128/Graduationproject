@@ -109,7 +109,7 @@ def create_graph(asts,vocabdict):
         #print(x)
         #print(edge_index)
         #print(edge_attr)
-        treelist.append([[x,edge_index,edge_attr],astlength])
+        treelist.append([[x,edge_index],astlength])
     return treelist
 def write_jsonl(filename, data):
     with open(filename, 'w') as file:
@@ -117,9 +117,9 @@ def write_jsonl(filename, data):
             json_line = json.dumps(item)
             file.write(json_line + '\n')
 def createFinetune():
-    data_dir = '../BCB/bigclonebenchdata'
+    data_dir = './bigclonebenchdata'
     data_splits = ['./traindata11.txt','./devdata.txt','./testdata.txt']
-    data_names = ['./train_finetune_part.jsonl','./valid_finetune_part.jsonl','./test_finetune_part.jsonl']
+    data_names = ['../train_BCB.jsonl','../valid_BCB.jsonl','../test_BCB.jsonl']
     all_codes = []
     all_asts = []
     all_paths = []
@@ -158,7 +158,7 @@ def createFinetune():
         this_ast2 = []
         this_label = []
         data_list = open(ds,'r').readlines()
-        count = 0
+        # count = 0
         for dl in data_list:
             d1 = dl.split()[0]
             d2 = dl.split()[1]
@@ -168,9 +168,9 @@ def createFinetune():
             this_code2.append(database[d2][0])
             this_ast2.append(database[d2][1])
             this_label.append(int(label))
-            count+=1
-            if count>100:
-                break
+            # count+=1
+            # if count>100:
+            #     break
         res = [{'code1':c1,'code2':c2,'ast1':a1,'ast2':a2,'label':l}for c1,c2,a1,a2,l in zip(this_code1,this_code2,this_ast1,this_ast2,this_label)]
         write_jsonl(dn,res)
 if __name__ == '__main__':

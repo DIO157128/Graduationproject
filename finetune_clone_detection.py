@@ -180,7 +180,7 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
             ast2 = batch[6]
             model.train()
             # the forward function automatically creates the correct decoder_input_ids
-            loss = model(code1_ids, code1_ne, code2_ids, code2_ne, label,ast1,ast2)
+            loss, logits = model(code1_ids, code1_ne, code2_ids, code2_ne, label,ast1,ast2)
             if args.n_gpu > 1:
                 loss = loss.mean()
             if args.gradient_accumulation_steps > 1:
@@ -255,7 +255,7 @@ def evaluate(args, model, tokenizer, eval_dataset, eval_when_training=False):
         label = batch[4].to(args.device)
         ast1 = batch[5]
         ast2 = batch[6]
-        loss = model(code1_ids, code1_ne, code2_ids, code2_ne, label,ast1,ast2)
+        loss, logits = model(code1_ids, code1_ne, code2_ids, code2_ne, label,ast1,ast2)
         if args.n_gpu > 1:
             loss = loss.mean()
         eval_loss += loss.item()

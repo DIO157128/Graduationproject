@@ -116,66 +116,63 @@ def write_jsonl(filename, data):
         for item in data:
             json_line = json.dumps(item)
             file.write(json_line + '\n')
-
-def parseAST(programtext,alltokens):
-    programtokens = javalang.tokenizer.tokenize(programtext.strip())
-    # print(list(programtokens))
-    parser = javalang.parse.Parser(programtokens)
-    programast = parser.parse_member_declaration()
-    get_sequence(programast, alltokens)
-    return programast
 def createFinetune():
-    directorys = ['./methods/CORRECT','./methods/INCORRECT']
-    pairs = []
-    tem_pair = []
-    cur_label = 1
-    for directory in directorys:
-        for root, dirs, files in os.walk(directory):
-            for file in files:
-                if len(tem_pair)==2:
-                    tem_pair.append(cur_label)
-                    pairs.append(tem_pair)
-                    tem_pair = []
-                file_path = os.path.join(root, file)
-                f= open(file_path,'r',encoding='utf-8')
-                content = f.read()
-                tem_pair.append(content)
-        cur_label=-1
-    if len(tem_pair) == 2:
-        tem_pair.append(cur_label)
-        pairs.append(tem_pair)
-        tem_pair = []
+    data_dir = 'googlejam4_src/'
+    data_splits = ['./train11.txt', './valid.txt', './test.txt']
+    data_names = ['../train_GJ4.jsonl', '../valid_GJ4.jsonl', '../test_GJ4.jsonl']
+    all_codes = []
+    all_asts = []
+    all_paths = []
     alltokens = []
+    lengths = []
     count = 0
-    pairs_with_ast = []
-    for p in tqdm.tqdm(pairs):
-        code1 = p[0]
-        code2 = p[1]
-        label = p[2]
-        try:
-            ast1 = parseAST(code1,alltokens)
-            ast2 = parseAST(code2,alltokens)
-            pairs_with_ast.append([code1,code2,ast1,ast2,label])
-        except Exception:
-            count+=1
-            continue
+    for i in range(1, 13):
+        for rt, dirs, files in os.walk(data_dir + str(i)):
+            for file in files:
+                full_dir = rt + '/' + file
+                f = open(full_dir, 'r', encoding='utf-8')
+                programtext = f.read()
+                try:
+                    programtokens = javalang.tokenizer.tokenize(programtext.strip())
+                    # print(list(programtokens))
+                    parser = javalang.parse.Parser(programtokens)
+                    programast = parser.parse_member_declaration()
+                    get_sequence(programast, alltokens)
+                    all_codes.append(programtext)
+                    all_paths.append(full_dir)
+                    all_asts.append(programast)
+                except Exception:
+                    count += 1
     print(count)
     alltokens = list(set(alltokens))
     vocabsize = len(alltokens)
     tokenids = range(vocabsize)
     print(vocabsize)
     vocabdict = dict(zip(alltokens, tokenids))
-    pairs_with_ast_tokenized = []
-    for p in tqdm.tqdm(pairs_with_ast):
-        code1 = p[0]
-        code2 = p[1]
-        ast1 = p[2]
-        ast2 = p[3]
-        label = p[4]
-        trees = create_graph([ast1,ast2],vocabdict)
-        pairs_with_ast_tokenized.append([code1,code2,trees[0],trees[1],label])
-    res = [{'code1': p[0], 'code2': p[1], 'ast1': p[2], 'ast2': p[3], 'label': p[4]} for p in
-           pairs_with_ast_tokenized]
-    write_jsonl('./all.jsonl',res)
+    all_asts = create_graph(all_asts,vocabdict)
+    database = {}
+    for p,c,a in zip(all_paths,all_codes,all_asts):
+        database[p] = [c,a]
+    for ds,dn in  zip(data_splits,data_names):
+        this_code1 = []
+        this_ast1 = []
+        this_code2 = []
+        this_ast2 = []
+        this_label = []
+        data_list = open(ds,'r').readlines()
+        # count = 0
+        for dl in data_list:
+            d1 = dl.split()[0].replace('\\', '/')
+            d2 = dl.split()[1].replace('\\', '/')
+            label = dl.split()[2]
+            this_code1.append(database[d1][0])
+            this_ast1.append(database[d1][1])
+            this_code2.append(database[d2][0])
+            this_ast2.append(database[d2][1])
+            this_label.append(int(label))
+            # if count>100:
+            #     break
+        res = [{'code1':c1,'code2':c2,'ast1':a1,'ast2':a2,'label':l}for c1,c2,a1,a2,l in zip(this_code1,this_code2,this_ast1,this_ast2,this_label)]
+        write_jsonl(dn,res)
 if __name__ == '__main__':
     createFinetune()

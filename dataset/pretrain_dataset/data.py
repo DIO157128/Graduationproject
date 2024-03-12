@@ -187,7 +187,7 @@ def split(file_path,towrite):
 
 if __name__ == '__main__':
     get_all_data()
-    # split('train.jsonl', 'train_part.jsonl')
-    # split('valid.jsonl', 'valid_part.jsonl')
-    # split('test.jsonl', 'test_part.jsonl')
+    split('train.jsonl', 'train_part.jsonl')
+    split('valid.jsonl', 'valid_part.jsonl')
+    split('test.jsonl', 'test_part.jsonl')
 

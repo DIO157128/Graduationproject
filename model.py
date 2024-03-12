@@ -21,17 +21,11 @@ class GGNN(torch.nn.Module):
     def forward(self, data):
         res_vector = []
         for d in data:
-            x, edge_index, edge_attr = d
+            x, edge_index = d
             x = torch.tensor(x,dtype=torch.long,device=self.device)
             edge_index = torch.tensor(edge_index, dtype=torch.long, device=self.device)
-            edge_attr = torch.tensor(edge_attr, dtype=torch.long, device=self.device)
             x = self.embed(x)
             x = x.squeeze(1)
-            if type(edge_attr)==type(None):
-                edge_weight=None
-            else:
-                edge_weight=self.edge_embed(edge_attr)
-                edge_weight=edge_weight.squeeze(1)
             x = self.ggnnlayer(x, edge_index)
             batch=torch.zeros(x.size(0),dtype=torch.long).to(self.device)
             hg=self.pool(x,batch=batch)
