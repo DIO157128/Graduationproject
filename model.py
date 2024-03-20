@@ -45,7 +45,7 @@ class ConcatenateModel(torch.nn.Module):
         super(ConcatenateModel, self).__init__()
         self.args = args
         self.seq_model = T5ForConditionalGeneration.from_pretrained("Salesforce/codet5-base").to(args.device)
-        self.graph_model = GGNN(671594,768,4,args.device).to(args.device)
+        self.graph_model = GGNN(854,768,4,args.device).to(args.device)
         self.eos_id = T5Config.from_pretrained("Salesforce/codet5-base").eos_token_id
     def encode_text(self,input_ids,attention_mask):
         outputs = self.seq_model(input_ids=input_ids, attention_mask=attention_mask,
@@ -78,7 +78,7 @@ class CloneDetectionConcatenateModel(torch.nn.Module):
         super(CloneDetectionConcatenateModel, self).__init__()
         self.args = args
         self.seq_model = T5ForConditionalGeneration.from_pretrained("Salesforce/codet5-base").to(args.device)
-        self.graph_model = GGNN(671594,768,4,args.device).to(args.device)
+        self.graph_model = GGNN(854,768,4,args.device).to(args.device)
         self.eos_id = T5Config.from_pretrained("Salesforce/codet5-base").eos_token_id
     def encode_text(self,input_ids,attention_mask):
         outputs = self.seq_model(input_ids=input_ids, attention_mask=attention_mask,
@@ -129,7 +129,7 @@ class ClassificationConcatenateModel(torch.nn.Module):
         super(ClassificationConcatenateModel, self).__init__()
         self.args = args
         self.seq_model = T5ForConditionalGeneration.from_pretrained("Salesforce/codet5-base").to(args.device)
-        self.graph_model = GGNN(671594,768,4,args.device).to(args.device)
+        self.graph_model = GGNN(854,768,4,args.device).to(args.device)
         self.eos_id = T5Config.from_pretrained("Salesforce/codet5-base").eos_token_id
         self.classifier = RobertaClassificationHead().to(args.device)
     def encode_text(self,input_ids,attention_mask):
@@ -165,7 +165,7 @@ class APCAConcatenateModel(torch.nn.Module):
         super(APCAConcatenateModel, self).__init__()
         self.args = args
         self.seq_model = T5ForConditionalGeneration.from_pretrained("Salesforce/codet5-base").to(args.device)
-        self.graph_model = GGNN(671594,768,4,args.device).to(args.device)
+        self.graph_model = GGNN(854,768,4,args.device).to(args.device)
         self.eos_id = T5Config.from_pretrained("Salesforce/codet5-base").eos_token_id
         self.classifier = RobertaClassificationHead().to(args.device)
     def encode_text(self,input_ids,attention_mask):

@@ -1,0 +1,8 @@
+vocab ori:671594
+vocab abs:854
+train len:164872
+valid len:5182
+test len:10953
+abs train failed:18316
+abs valid failed:760
+abs test failed:892

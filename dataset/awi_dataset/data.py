@@ -2,175 +2,37 @@ import json
 import os
 
 import javalang
-import pandas as pd
 import tqdm
 from javalang.ast import Node
 from anytree import AnyNode
-def read_json(file_path):
+
+from utils import getvocabdict, create_tokenized_ast, write_jsonl
+
+
+def read_json(js_path):
     codes = []
-    doc_strings = []
-    with open(file_path, encoding="utf-8") as f:
-        for idx, line in enumerate(f):
+    labels = []
+    with open(js_path, encoding="utf-8") as f:
+        for line in tqdm.tqdm(f):
             line = line.strip()
             js = json.loads(line)
-            if 'idx' not in js:
-                js['idx'] = idx
-            code = js['code']
-            doc_string = js['docstring']
-            codes.append(code)
-            doc_strings.append(doc_string)
+            codes.append(js['code'])
+            labels.append(js['label'])
+    return codes,labels
 
-    return codes,doc_strings
-def get_token(node):
-    token = ''
-    #print(isinstance(node, Node))
-    #print(type(node))
-    if isinstance(node, str):
-        token = node
-    elif isinstance(node, set):
-        token = 'Modifier'
-    elif isinstance(node, Node):
-        token = node.__class__.__name__
-    #print(node.__class__.__name__,str(node))
-    #print(node.__class__.__name__, node)
-    return token
-def get_child(root):
-    #print(root)
-    if isinstance(root, Node):
-        children = root.children
-    elif isinstance(root, set):
-        children = list(root)
-    else:
-        children = []
 
-    def expand(nested_list):
-        for item in nested_list:
-            if isinstance(item, list):
-                for sub_item in expand(item):
-                    #print(sub_item)
-                    yield sub_item
-            elif item:
-                #print(item)
-                yield item
-    return list(expand(children))
-def get_sequence(node, sequence):
-    token, children = get_token(node), get_child(node)
-    sequence.append(token)
-    #print(len(sequence), token)
-    for child in children:
-        get_sequence(child, sequence)
-def getnodeandedge(node,nodeindexlist,vocabdict,src,tgt,edgetype):
-    token=node.token
-    nodeindexlist.append([vocabdict[token]])
-    for child in node.children:
-        src.append(node.id)
-        tgt.append(child.id)
-        edgetype.append([0])
-        src.append(child.id)
-        tgt.append(node.id)
-        edgetype.append([0])
-        getnodeandedge(child,nodeindexlist,vocabdict,src,tgt,edgetype)
-
-def createtree(root,node,nodelist,parent=None):
-    id = len(nodelist)
-    #print(id)
-    token, children = get_token(node), get_child(node)
-    if id==0:
-        root.token=token
-        root.data=node
-    else:
-        newnode=AnyNode(id=id,token=token,data=node,parent=parent)
-    nodelist.append(node)
-    for child in children:
-        if id==0:
-            createtree(root,child, nodelist, parent=root)
-        else:
-            createtree(root,child, nodelist, parent=newnode)
-
-def create_graph(asts,vocabdict):
-    pathlist = []
-    treelist = []
-    for tree in asts:
-        #print(tree)
-        #print(path)
-        nodelist = []
-        newtree=AnyNode(id=0,token=None,data=None)
-        createtree(newtree, tree, nodelist)
-        #print(path)
-        #print(newtree)
-        x = []
-        edgesrc = []
-        edgetgt = []
-        edge_attr=[]
-        getnodeandedge(newtree, x, vocabdict, edgesrc, edgetgt,edge_attr)
-
-        #x = torch.tensor(x, dtype=torch.long, device=device)
-        edge_index=[edgesrc, edgetgt]
-        #edge_index = torch.tensor([edgesrc, edgetgt], dtype=torch.long, device=device)
-        astlength=len(x)
-        #print(x)
-        #print(edge_index)
-        #print(edge_attr)
-        treelist.append([[x,edge_index,edge_attr],astlength])
-    return treelist
-def write_jsonl(filename, data):
-    with open(filename, 'w') as file:
-        for item in data:
-            json_line = json.dumps(item)
-            file.write(json_line + '\n')
-def get_all_data():
-    file_paths = ['./original_data/awi_train.csv', './original_data/awi_val.csv', './original_data/awi_test.csv']
-    saved_file_paths = ['./awi_train.jsonl', './awi_val.jsonl', './awi_test.jsonl']
-
-    ##get vocab_dict
-    all_codes = []
-    alltokens = []
-    for file_path in file_paths:
-        df = pd.read_csv(file_path)
-        codes = df['source'].tolist()
-        all_codes.extend(codes)
-    count = 0
-    for code in tqdm.tqdm(all_codes):
-        try:
-            programtokens = javalang.tokenizer.tokenize(code)
-            # print(list(programtokens))
-            parser = javalang.parse.Parser(programtokens)
-            programast = parser.parse_member_declaration()
-            get_sequence(programast, alltokens)
-        except Exception:
-            count+=1
-    print(count)
-    alltokens = list(set(alltokens))
-    vocabsize = len(alltokens)
-    tokenids = range(vocabsize)
-    vocabdict = dict(zip(alltokens, tokenids))
-    print(vocabsize)
-    for file_path,saved_file_path in zip(file_paths,saved_file_paths):
-        df = pd.read_csv(file_path)
-        codes = df['source'].tolist()
-        labels = df['target'].tolist()
-
-        final_codes = []
-        final_labels = []
-        final_asts = []
-        count = 0
-        for idx in tqdm.tqdm(range(len(codes))):
-            try:
-                code = codes[idx]
-                programtokens = javalang.tokenizer.tokenize(code)
-                # print(list(programtokens))
-                parser = javalang.parse.Parser(programtokens)
-                programast = parser.parse_member_declaration()
-                final_asts.append(programast)
-                final_codes.append(code)
-                final_labels.append(labels[idx])
-            except Exception:
-                count+=1
-                continue
-        print(count)
-        treedict = create_graph(final_asts, vocabdict)
-        res = [{'code':c,'label':l,'ast':a}for c,l,a in zip(final_codes,final_labels,treedict)]
-        write_jsonl(saved_file_path,res)
+def read_abs_json(js_path):
+    codes = []
+    labels = []
+    abs_codes = []
+    with open(js_path, encoding="utf-8") as f:
+        for line in tqdm.tqdm(f):
+            line = line.strip()
+            js = json.loads(line)
+            codes.append(js['code'])
+            labels.append(js['label'])
+            abs_codes.append(js['abs_code'])
+    return codes,labels,abs_codes
 
 def split(file_path,towrite):
     res = []
@@ -185,11 +47,90 @@ def split(file_path,towrite):
                 break
     write_jsonl(towrite,res)
 
+def trans2dir(path,sub_path):
+    count = 0
+    with open(path, encoding="utf-8") as f:
+        for line in tqdm.tqdm(f):
+            line = line.strip()
+            js = json.loads(line)
+            code = js['code']
+            f1 = open(sub_path+'/{}.java'.format(count),'w', encoding="utf-8")
+            f1.write(code)
+            f1.close()
+            count+=1
 
+def getAbs(code_type):
+    code_path = './codes/{}/'.format(code_type)
+    code_abs_path = './codes_abstract/{}/'.format(code_type)
+    codes = os.listdir(code_path)
+    for i in tqdm.tqdm(range(len(codes))):
+        code = code_path+'{}.java'.format(i)
+        code_abs = code_abs_path+'{}.java'.format(i)
+        cmd = "java -jar ../src2abs/src2abs-0.1-jar-with-dependencies.jar single method {} {} ../src2abs/idioms.csv".format(
+        code,code_abs)
+        os.system(cmd)
+def combineAbs(code_type):
+    json_file = './original_data/{}.jsonl'.format(code_type)
+    codes,labels = read_json(json_file)
+    code_abs_path = './codes_abstract/{}/'.format(code_type)
+    codes_abs = os.listdir(code_abs_path)
+    abs_codes = []
+    assert len(codes_abs)/2==len(codes)
+    for i in tqdm.tqdm(range(len(codes))):
+        code_abs = code_abs_path + '{}.java'.format(i)
+        f = open(code_abs,'r',encoding='utf-8')
+        abs_codes.append(f.read().strip())
+        f.close()
+    res = [{'code':c,'abs_code': abs_c, 'label': l} for c, abs_c,l in zip(codes,abs_codes,labels)]
+    write_jsonl('abs_data/{}.jsonl'.format(code_type), res)
+
+def get_all_data():
+    file_paths = ['./abs_data/train.jsonl','./abs_data/valid.jsonl','./abs_data/test.jsonl']
+
+    ##get vocab_dict
+    all_abs_codes = []
+    for file_path in file_paths:
+        tem_codes, tem_labels,tem_abs_codes = read_abs_json(file_path)
+        all_abs_codes.extend(tem_abs_codes)
+        print(len(tem_abs_codes))
+
+
+    vocabdict = getvocabdict(all_abs_codes)
+
+    for file_path in file_paths:
+        codes,labels,abs_codes = read_abs_json(file_path)
+        final_codes = []
+        final_labels = []
+        final_asts = []
+        final_abs_codes = []
+        count = 0
+        for idx in tqdm.tqdm(range(len(codes))):
+            try:
+                code = codes[idx]
+                abs_code = abs_codes[idx]
+                programtokens = javalang.tokenizer.tokenize(abs_code)
+                # print(list(programtokens))
+                parser = javalang.parse.Parser(programtokens)
+                programast = parser.parse_member_declaration()
+                final_asts.append(programast)
+                final_codes.append(code)
+                final_abs_codes.append(abs_code)
+                final_labels.append(labels[idx])
+            except Exception:
+                count+=1
+                continue
+        print("failed:{}".format(count))
+        treedict = create_tokenized_ast(final_asts, vocabdict)
+        res = [{'code':c,'abs_code':ac,'label':l,'ast':a}for c,ac,l,a in zip(final_codes,final_abs_codes,final_labels,treedict)]
+        write_jsonl(file_path.replace('abs_data/',''),res)
 if __name__ == '__main__':
-    # get_all_data()
-    # split('awi_train.jsonl', 'awi_train_part.jsonl')
-    split('awi_val.jsonl', 'awi_val_part.jsonl')
-    split('awi_test.jsonl', 'awi_test_part.jsonl')
-
-
+    trans2dir('./original_data/awi_train.jsonl','./codes/train')
+    trans2dir('./original_data/awi_valid.jsonl', './codes/valid')
+    trans2dir('./original_data/awi_test.jsonl', './codes/test')
+    getAbs('train')
+    getAbs('valid')
+    getAbs('test')
+    combineAbs('train')
+    combineAbs('valid')
+    combineAbs('test')
+    get_all_data()
